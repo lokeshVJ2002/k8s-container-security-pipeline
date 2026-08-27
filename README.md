@@ -1,73 +1,89 @@
 Container Security Lab — Node.js & Docker
 
-A lightweight container-security lab built around a minimal Node.js HTTP application and a hardened Docker image.
+A lightweight container-security lab built around a minimal Node.js HTTP application and a security-focused Docker configuration.
 
-The project focuses on container hardening, least-privilege execution, and reproducible infrastructure configuration. It is intentionally small so that the security characteristics of the container can be inspected and tested without a large application stack.
+The project demonstrates basic container-hardening concepts such as non-root execution, minimal runtime dependencies, Alpine-based images, and infrastructure configuration with Terraform.
 
-Project status: This repository currently contains the Node.js application, Docker configuration, and a local Terraform-based registry mock. Kubernetes manifests and a full CI/CD security pipeline are not currently implemented.
+Current status: This repository is currently a container-security foundation. It includes a Node.js application, Docker configuration, and a Terraform-based local registry mock. Kubernetes manifests, AWS ECR integration, vulnerability scanning, image signing, and a complete CI/CD security pipeline are not currently implemented.
 
 Overview
 
-The application is a minimal HTTP server written using Node.js's built-in http module.
+The application is a minimal HTTP server built using Node.js's native http module.
 
-The container is designed with basic security principles including:
+The project focuses on keeping the application and container simple so that container-security concepts can be inspected and tested without the complexity of a large application stack.
 
-Minimal application dependencies
-Alpine-based container images
-Non-root container execution
+Currently implemented
+Minimal Node.js HTTP application
+Alpine-based Docker images
+Dedicated non-root application user
 Reduced runtime packages
 Removal of Alpine package-cache artifacts
-Separation between build and runtime stages in the Dockerfile
-Terraform configuration for a local container-registry simulation
+Dockerfile with separate builder and runtime stages
+Terraform configuration
+Local container-registry simulation
+Not currently implemented
+Kubernetes deployment
+Amazon ECR
+GitHub Actions CI/CD pipeline
+Container vulnerability scanning
+SBOM generation
+Image signing and verification
+Kubernetes admission policies
+Kubernetes RBAC
+Kubernetes NetworkPolicy
 
-The project is suitable as a starting point for experimenting with container-security tooling such as Trivy, Grype, Hadolint, Syft, Cosign, and Kubernetes admission policies.
+These features are documented as future improvements rather than current capabilities.
 
 Architecture
 
-The current implementation is intentionally simple:
+The current implementation is intentionally small:
 
-                    Developer
-                       |
-                       v
-                +--------------+
-                | Node.js App  |
-                +--------------+
-                       |
-                       v
-                +--------------+
-                |   Docker     |
-                |    Image     |
-                +--------------+
-                       |
-                       v
-                +--------------+
-                | Local Docker |
-                |   Registry   |
-                |  localhost   |
-                |    :5000     |
-                +--------------+
-
-                Terraform
-                    |
-                    v
-          Local Registry Mock
-          (null_resource)
+                         Developer
+                            |
+              +-------------+-------------+
+              |                           |
+              v                           v
+       +--------------+            +--------------+
+       |  Node.js App |            |  Terraform   |
+       +--------------+            +--------------+
+              |                           |
+              v                           v
+       +--------------+            +--------------+
+       | Docker Image |            | Registry Mock|
+       +--------------+            +--------------+
+              |                    localhost:5000
+              |                    /k8s-sec-app
+              |
+              v
+       Local Container
 
 
-The Terraform configuration does not provision Amazon ECR or a Kubernetes cluster. It currently creates a null_resource that prints a message and exposes localhost:5000/k8s-sec-app as a simulated registry URL. {"fallbackMarkdown":"(GitHub
-)","reference":{"matched_text":"","prefix":null,"start_idx":2671,"end_idx":2688,"safe_urls":["https://raw.githubusercontent.com/lokeshVJ2002/k8s-container-security-pipeline/main/terraform/main.tf"],"refs":[],"alt":"(GitHub
-)","prompt_text":null,"type":"grouped_webpages","items":[{"title":"","url":"https://raw.githubusercontent.com/lokeshVJ2002/k8s-container-security-pipeline/main/terraform/main.tf","attribution":"GitHub","pub_date":null,"snippet":null,"attribution_segments":null,"supporting_websites":[],"refs":[{"turn_index":0,"ref_type":"view","ref_index":3}],"hue":null,"attributions":null}],"status":"done","style":null,"fallback_items":null,"error":null},"showLoginRequiredCard":false}
+The Terraform configuration does not provision Amazon ECR, Kubernetes, or AWS infrastructure.
+
+Instead, it currently uses a Terraform null_resource with a local-exec provisioner to simulate an ECR repository and exposes:
+
+localhost:5000/k8s-sec-app
+
+
+as a mock registry URL.
+
+This keeps the project independent of an AWS account while the container-security foundation is being developed.
 
 Application
 
-The application is a zero-dependency Node.js HTTP server.
+The application is a minimal Node.js HTTP server with no external runtime dependencies.
 
-It uses Node.js's native http module rather than an external web framework. The server listens on port 3000 by default and returns a small JSON response. {"fallbackMarkdown":"(GitHub
-)","reference":{"matched_text":"","prefix":null,"start_idx":2928,"end_idx":2945,"safe_urls":["https://raw.githubusercontent.com/lokeshVJ2002/k8s-container-security-pipeline/main/app/server.js"],"refs":[],"alt":"(GitHub
-)","prompt_text":null,"type":"grouped_webpages","items":[{"title":"","url":"https://raw.githubusercontent.com/lokeshVJ2002/k8s-container-security-pipeline/main/app/server.js","attribution":"GitHub","pub_date":null,"snippet":null,"attribution_segments":null,"supporting_websites":[],"refs":[{"turn_index":0,"ref_type":"view","ref_index":2}],"hue":null,"attributions":null}],"status":"done","style":null,"fallback_items":null,"error":null},"showLoginRequiredCard":false}
+It uses Node.js's built-in http module and listens on port 3000 by default.
 
-Example response:
+The application returns a JSON response containing:
 
+Application status
+Application message
+Current timestamp
+
+The port can be changed using the PORT environment variable.
+
+Example response
 {
   "status": "success",
   "message": "Secure Kubernetes Application is Live!",
@@ -75,98 +91,109 @@ Example response:
 }
 
 
-The port can be changed using the PORT environment variable.
+Note: The response message still contains the phrase "Kubernetes Application", but the current repository does not deploy the application to Kubernetes. This message can be renamed in a future cleanup to avoid confusion.
 
-Docker Security
+Docker Configuration
 
-The Dockerfile attempts to separate the build and runtime stages:
+The Dockerfile contains separate builder and runtime stages.
+
+The current structure is:
 
 node:20-alpine
       |
-      | builder stage
-      v
-application
+      | Builder stage
       |
+      v
+Application files
+      |
+      | Runtime stage
       v
 alpine:3.20
       |
-      | minimal runtime
       v
-non-root Node.js process
+Node.js runtime
+      |
+      v
+Non-root application user
 
+Current container controls
 
 The runtime image:
 
 Uses Alpine Linux
-Installs Node.js only in the runtime image
-Removes the Alpine package cache
-Creates a dedicated appuser
-Runs the application as appuser instead of root
+Installs Node.js in the runtime image
+Removes Alpine package-cache artifacts
+Creates a dedicated application group
+Creates a dedicated application user
+Runs the application as the non-root user
 Exposes port 3000
 
-The non-root configuration is explicitly implemented with:
+The non-root configuration is:
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
 
 
-{"fallbackMarkdown":"(GitHub
-)","reference":{"matched_text":"","prefix":null,"start_idx":3808,"end_idx":3825,"safe_urls":["https://raw.githubusercontent.com/lokeshVJ2002/k8s-container-security-pipeline/main/app/Dockerfile"],"refs":[],"alt":"(GitHub
-)","prompt_text":null,"type":"grouped_webpages","items":[{"title":"","url":"https://raw.githubusercontent.com/lokeshVJ2002/k8s-container-security-pipeline/main/app/Dockerfile","attribution":"GitHub","pub_date":null,"snippet":null,"attribution_segments":null,"supporting_websites":[],"refs":[{"turn_index":0,"ref_type":"view","ref_index":1}],"hue":null,"attributions":null}],"status":"done","style":null,"fallback_items":null,"error":null},"showLoginRequiredCard":false}
+Running the application as a non-root user reduces the impact of a potential container compromise compared with running the application as root.
 
-Important implementation note
+Dockerfile Implementation Note
 
-The Dockerfile currently defines a builder stage but does not actually install dependencies or copy artifacts from that stage into the runtime image.
+Although the Dockerfile contains a builder stage, the current implementation does not fully use the builder stage.
 
-Therefore, this repository should not currently be described as a fully implemented multi-stage production build.
-
-The builder stage is currently:
+The builder currently performs:
 
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY app/package*.json ./
 
 
-while the runtime stage independently installs Node.js and copies server.js. {"fallbackMarkdown":"(GitHub
-)","reference":{"matched_text":"","prefix":null,"start_idx":4335,"end_idx":4352,"safe_urls":["https://raw.githubusercontent.com/lokeshVJ2002/k8s-container-security-pipeline/main/app/Dockerfile"],"refs":[],"alt":"(GitHub
-)","prompt_text":null,"type":"grouped_webpages","items":[{"title":"","url":"https://raw.githubusercontent.com/lokeshVJ2002/k8s-container-security-pipeline/main/app/Dockerfile","attribution":"GitHub","pub_date":null,"snippet":null,"attribution_segments":null,"supporting_websites":[],"refs":[{"turn_index":0,"ref_type":"view","ref_index":1}],"hue":null,"attributions":null}],"status":"done","style":null,"fallback_items":null,"error":null},"showLoginRequiredCard":false}
+The runtime stage independently installs Node.js and copies server.js.
 
-This is an area planned for improvement.
+Therefore, the current Dockerfile should not be considered a fully optimized multi-stage production build.
 
+A future version can improve this by:
+
+Installing dependencies in the builder stage
+Using npm ci
+Copying only required artifacts into the runtime image
+Removing unnecessary build-time content
+Pinning base-image versions or digests
+Adding a container health check
+Reducing the runtime attack surface further
 Terraform
 
-Terraform is included under:
+Terraform configuration is located in:
 
 terraform/
 └── main.tf
 
 
-The current Terraform configuration is deliberately local and does not create AWS resources.
+The current Terraform configuration does not create AWS resources.
 
-It uses:
+Instead, it uses:
 
 resource "null_resource" "ecr_repository"
 
 
-with a local-exec command that prints:
+with a local-exec command to simulate initialization of a container registry.
 
-Local ECR Mock Initialized for k8s-sec-app
-
-
-The Terraform output exposes:
+The Terraform output provides:
 
 localhost:5000/k8s-sec-app
 
 
-as the simulated container-registry location. {"fallbackMarkdown":"(GitHub
-)","reference":{"matched_text":"","prefix":null,"start_idx":4854,"end_idx":4871,"safe_urls":["https://raw.githubusercontent.com/lokeshVJ2002/k8s-container-security-pipeline/main/terraform/main.tf"],"refs":[],"alt":"(GitHub
-)","prompt_text":null,"type":"grouped_webpages","items":[{"title":"","url":"https://raw.githubusercontent.com/lokeshVJ2002/k8s-container-security-pipeline/main/terraform/main.tf","attribution":"GitHub","pub_date":null,"snippet":null,"attribution_segments":null,"supporting_websites":[],"refs":[{"turn_index":0,"ref_type":"view","ref_index":3}],"hue":null,"attributions":null}],"status":"done","style":null,"fallback_items":null,"error":null},"showLoginRequiredCard":false}
+as the simulated registry location.
 
-Why a local mock?
+Why use a mock?
 
-The current implementation keeps the project independent of an AWS account while the container-security concepts are being developed.
+The local mock allows the project to be developed without requiring:
 
-A future version can replace this mock with a real container registry such as Amazon ECR.
+An AWS account
+AWS credentials
+An Amazon ECR repository
+AWS infrastructure costs
+
+A future version can replace the mock with a real Amazon ECR repository.
 
 Repository Structure
 .
@@ -188,15 +215,20 @@ Repository Structure
 Main components
 Component	Purpose
 app/server.js	Minimal Node.js HTTP application
-app/package.json	Application metadata
+app/package.json	Node.js application metadata
 app/Dockerfile	Container build and hardening configuration
-terraform/main.tf	Local container-registry simulation
-public.key	Public key material reserved for future signing/verification work
-.github/workflows/deploy.yml	Reserved location for CI/CD automation
+terraform/main.tf	Local registry simulation
+.github/workflows/deploy.yml	Reserved location for future CI/CD automation
+public.key	Public key currently reserved for future signing/verification work
 Running the Application Locally
-1. Run directly with Node.js
+Run with Node.js
 
-From the app directory:
+Move into the application directory:
+
+cd app
+
+
+Start the application:
 
 node server.js
 
@@ -210,7 +242,7 @@ Test it with:
 
 curl http://localhost:3000
 
-Building the Container
+Build the Docker Image
 
 From the repository root:
 
@@ -222,26 +254,30 @@ Run the container:
 docker run --rm -p 3000:3000 k8s-sec-app
 
 
-Then test:
+Test the container:
 
 curl http://localhost:3000
 
-Verifying Non-Root Execution
+Verify Non-Root Execution
 
-The image is configured to run as appuser.
+The container is configured to run as appuser.
 
 You can verify the effective user with:
 
 docker run --rm k8s-sec-app id
 
 
-The container should not run the application as UID 0 (root).
+The application should not run as UID 0.
 
-Terraform
+Terraform Usage
+
+Move into the Terraform directory:
+
+cd terraform
+
 
 Initialize Terraform:
 
-cd terraform
 terraform init
 
 
@@ -250,189 +286,253 @@ Review the planned changes:
 terraform plan
 
 
-Apply the local configuration:
+Apply the configuration:
 
 terraform apply
 
 
-The Terraform output should provide the simulated registry address:
+The Terraform output provides the simulated registry address:
 
 localhost:5000/k8s-sec-app
 
 
-Remove the local Terraform resources with:
+Destroy the local Terraform resources with:
 
 terraform destroy
 
 Current Security Controls
 
-The current project implements the following security concepts:
+The current repository demonstrates the following security concepts.
 
-Container-level controls
-Non-root user
+Container security
+Non-root container execution
+Dedicated application user
 Dedicated application group
 Minimal Node.js application
 Alpine-based runtime
+Reduced runtime packages
 Removal of package-cache artifacts
-Separation of build/runtime stages in the Dockerfile structure
 Infrastructure
 Terraform-managed configuration
 Local registry simulation
-No hard-coded AWS credentials
-No requirement for an AWS account in the current implementation
-Security Tools Planned
+No AWS credentials required
+No AWS account required for the current implementation
+Security Tools and Pipeline — Planned
 
-The repository is intended to evolve into a broader container-security pipeline.
+The project is intended to evolve into a complete container-security and Kubernetes supply-chain pipeline.
 
-Potential security stages include:
+The planned architecture is:
 
 Source Code
-    |
-    v
+     |
+     v
 Secret Scanning
-    |
-    v
+     |
+     v
 SAST
-    |
-    v
+     |
+     v
 Dockerfile Security Scan
-    |
-    v
+     |
+     v
 Container Build
-    |
-    v
+     |
+     v
 Image Vulnerability Scan
-    |
-    v
+     |
+     v
 SBOM Generation
-    |
-    v
+     |
+     v
 Image Signing
-    |
-    v
+     |
+     v
 Container Registry
-    |
-    v
+     |
+     v
 Kubernetes Deployment
-    |
-    v
+     |
+     v
 Admission Policy
+     |
+     v
+Runtime Security
 
-
-Potential tooling:
-
+Planned tooling
 Security area	Candidate tool
 Secret scanning	Gitleaks / TruffleHog
 SAST	Semgrep
 Dockerfile scanning	Hadolint
 Image vulnerability scanning	Trivy / Grype
-SBOM	Syft
+SBOM generation	Syft
 Image signing	Cosign
 Kubernetes policy	Kyverno / OPA Gatekeeper
 IaC scanning	Checkov
 CI/CD	GitHub Actions
 
-These tools are planned extensions rather than claims about the current implementation.
+These tools represent the planned security architecture and are not being presented as currently implemented features.
 
 Current Limitations
 
-This repository is currently a container-security foundation rather than a complete Kubernetes security platform.
+The repository is currently a container-security foundation rather than a complete Kubernetes security platform.
 
-The following components are not currently implemented:
+The following capabilities are not currently implemented:
 
 Kubernetes Deployment
 Kubernetes Service
 Kubernetes Namespace
+Kubernetes ServiceAccount
 Kubernetes RBAC
 Kubernetes securityContext
 Kubernetes NetworkPolicy
-Kubernetes Pod Security Admission configuration
+Pod Security Admission configuration
 Kubernetes admission controller
 Amazon ECR
 AWS infrastructure provisioning
-Container vulnerability scanning workflow
+Container vulnerability scanning
 SBOM generation
-Image signing workflow
+Image signing
+Image-signature verification
 Image-signature enforcement
-Complete GitHub Actions CI/CD pipeline
+Complete GitHub Actions pipeline
 Automated Kubernetes deployment
+Runtime security monitoring
+Repository Security Considerations
+Terraform state
 
-These are intentionally documented as future work so that the repository description accurately reflects the implementation.
+The current repository contains a Terraform state file:
 
-Security Improvements Planned
+terraform/terraform.tfstate
 
-The next development stages are:
 
-Phase 1 — Container hardening
+Terraform state files should generally not be committed to a public Git repository, because Terraform state can contain sensitive infrastructure information or secret values depending on the configuration.
+
+For a production implementation, the state should be:
+
+Removed from source control
+Added to .gitignore
+Stored in a protected remote backend
+Encrypted at rest
+Access-controlled
+
+Example .gitignore entries:
+
+.terraform/
+*.tfstate
+*.tfstate.*
+
+
+If the state file has already been committed, removing it from the latest commit is not necessarily enough; its presence may remain in Git history.
+
+Future Improvements
+Phase 1 — Container Hardening
 Complete the multi-stage Docker build
-Pin runtime dependencies
-Run as non-root
+Use npm ci where appropriate
+Pin base-image versions
+Consider image digests for reproducibility
+Add a container health check
 Drop unnecessary Linux capabilities
-Add a read-only root filesystem where possible
-Add container health checks
+Use a read-only root filesystem where practical
 Scan the Dockerfile with Hadolint
-Phase 2 — Container security pipeline
+Phase 2 — CI/CD Security
 
-Add GitHub Actions stages for:
+Build a GitHub Actions pipeline containing:
 
 Secret Scan
-     ↓
+     |
+     v
 SAST
-     ↓
+     |
+     v
+Dockerfile Scan
+     |
+     v
 Docker Build
-     ↓
+     |
+     v
 Trivy
-     ↓
+     |
+     v
 SBOM
-     ↓
+     |
+     v
 Cosign
 
-Phase 3 — Kubernetes security
+Phase 3 — Container Registry
+
+Replace the local registry mock with Amazon ECR.
+
+The target flow would become:
+
+GitHub Actions
+      |
+      v
+Build Image
+      |
+      v
+Scan Image
+      |
+      v
+Sign Image
+      |
+      v
+Amazon ECR
+
+Phase 4 — Kubernetes Security
 
 Add:
 
-Deployment
-Service
+Kubernetes Deployment
+Kubernetes Service
 Namespace
 ServiceAccount
 RBAC
 SecurityContext
-Resource requests/limits
-Liveness/readiness probes
+Resource requests and limits
+Liveness probe
+Readiness probe
 NetworkPolicy
-Phase 4 — Supply-chain security
+Phase 5 — Supply-Chain Security
 
 Implement:
 
 Build
-  ↓
+  |
+  v
 Scan
-  ↓
+  |
+  v
 Generate SBOM
-  ↓
+  |
+  v
 Sign Image
-  ↓
+  |
+  v
 Push Image
-  ↓
+  |
+  v
 Verify Signature
-  ↓
+  |
+  v
 Deploy
 
-Phase 5 — Admission control
+Phase 6 — Admission Control
 
 Use Kyverno or OPA Gatekeeper to enforce policies such as:
 
-No latest image tags
+Images must not use the latest tag
 Images must come from approved registries
 Containers must run as non-root
-Privileged containers prohibited
-Privilege escalation prohibited
-Linux capabilities dropped
-Resource limits required
-Signed images required
+Privileged containers are prohibited
+Privilege escalation is prohibited
+Linux capabilities must be dropped
+Resource limits are required
+Only signed images may be deployed
 Project Goal
 
-The long-term goal of this project is to demonstrate how a container can move through a secure software supply chain:
+The long-term goal is to demonstrate a secure container software-supply-chain workflow from source code to Kubernetes deployment.
+
+The intended final architecture is:
 
 Developer
     |
@@ -452,7 +552,7 @@ SBOM
 Image Signing
     |
     v
-Trusted Registry
+Trusted Container Registry
     |
     v
 Kubernetes
@@ -464,9 +564,36 @@ Admission Security
 Runtime Security
 
 
-The current repository represents the initial container-hardening stage of that architecture.
+The current repository represents the initial container-hardening stage of this architecture.
 
+Project Status
+
+Current stage: Container Security Foundation
+
+Implemented:
+
+Node.js application
+Docker container
+Non-root execution
+Alpine runtime
+Basic container hardening
+Terraform local registry mock
+
+Planned:
+
+CI/CD security pipeline
+Vulnerability scanning
+SBOM
+Image signing
+Amazon ECR
+Kubernetes deployment
+Kubernetes security policies
+Admission control
+Runtime security
 License
 
+Add a license section here only after a LICENSE file has been added to the repository.
+
+For example, if the repository is licensed under MIT, add the MIT license file and then replace this section with:
+
 This project is licensed under the MIT License.
-:::{"fallbackMarkdown":"","reference":{"matched_text":" ","prefix":null,"start_idx":10958,"end_idx":10958,"safe_urls":[],"refs":[],"alt":"","prompt_text":null,"type":"sources_footnote","sources":[{"title":"","url":"https://raw.githubusercontent.com/lokeshVJ2002/k8s-container-security-pipeline/main/terraform/main.tf","attribution":"GitHub"}],"has_images":false},"showLoginRequiredCard":false}
